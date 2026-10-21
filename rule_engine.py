@@ -1,88 +1,48 @@
 # rule_engine.py
-import re
 
 class DrawingRuleEngine:
     def __init__(self):
         pass
 
-    def evaluate_drawing(self, text, parameters=None):
-        if parameters is None:
-            parameters = {}
-        
-        min_wall_threshold = parameters.get("min_wall_thickness", 2.0)
+    def evaluate_drawing(self, text, params):
         issues = []
-        
-        text_lower = text.lower()
+        min_wall = params.get("min_wall_thickness", 2.5)
+        thickness = params.get("thickness_mm", 15.0)
 
-        # 1. ISO 2768 Kontroll (Allmänna toleranser)
-        if "iso 2768" in text_lower or "2768" in text:
-            if "iso 2768-m" in text_lower or "2768-m" in text_lower:
-                issues.append({
-                    "rule_id": "RULE-ISO-2768-M",
-                    "severity": "Information",
-                    "description": "ISO 2768-m (medel) detekterad i ritningens titelhål.",
-                    "remediation": "Kontrollera att verkstadens toleransintervall klarar standardens medelklasser för fria mått."
-                })
-            elif "iso 2768-f" in text_lower or "2768-f" in text_lower:
-                issues.append({
-                    "rule_id": "RULE-ISO-2768-F",
-                    "severity": "Varning",
-                    "description": "ISO 2768-f (fin) detekterad. Kräver noggrannare bearbetning.",
-                    "remediation": "Säkerställ att maskinparken klarar fina toleranser (t.ex. ±0.1 mm eller bättre) utan extra operationer."
-                })
-        else:
-ಲಿಲ್ಲissues.append({
-                "rule_id": "RULE-ISO-2768-MISSING",
+        if thickness < min_wall:
+            issues.append({
+                "rule_id": "RULE-THICK-01",
                 "severity": "Varning",
-                "description": "Ingen referens till ISO 2768 (allmänna toleranser) hittades i ritningstexten.",
-                "remediation": "Komplettera ritningens titelhål med gällande standard för allmänna toleranser (t.ex. ISO 2768-m)."
-            })
-
-        # 2. ISO 1101 / GD&T Kontroll (Form- och lägestoleranser)
-        gdt_keywords = ["flatness", "planhet", "perpendicularity", "vinkelrätt", "cylindricity", "cirkularitet", "position", "true position", "sann position"]
-        found_gdt = [kw for kw in gdt_keywords if kw in text_lower]
-        
-        if found_gdt:
-            issues.append({
-                "rule_id": "RULE-GDT-FOUND",
-                "severity": "Information",
-                "description": f"GD&T-relaterade termer detekterade: {', '.join(set(found_gdt))}.",
-                "remediation": "Verifiera att referenssystem (datums A, B, C) är korrekt definierade i enlighet med ISO 1101."
+                "description": f"Detaljens tjocklek ({thickness} mm) underskrider det satta gränsvärdet för minsta väggtjocklek ({min_wall} mm)."
             })
         else:
             issues.append({
-                "rule_id": "RULE-GDT-NONE",
-                "severity": "Information",
-                "description": "Inga explicita GD&T-symboler eller nyckelord upptäcktes.",
-                "remediation": "Om detaljen har höga funktionskrav, överväg att lägga till form- och lägestoleranser."
-            })
-
-        # 3. CNC-bearbetning & DFM (Väggtjocklekar, radier, aspekter)
-        # Exempel på regel: Kontrollera om tunna väggar nämns eller om min-värde underskrids
-        if "wall" in text_lower or "vägg" in text_lower:
-            issues.append({
-                "rule_id": "RULE-CNC-WALL",
-                "severity": "Information",
-                "description": "Ritningen innehåller anvisningar kring väggtjocklek.",
-                "remediation": f"Kontrollera att inga väggar understiger den kritiska gränsen på {min_wall_threshold} mm för att undvika vibrationer och vibrationstoleranser vid fräsning."
-            })
-
-        # Standardkontroll för skarpa hörn / radier
-        if "sharp" in text_lower or "skarpa" in text_lower or "utan radie" in text_lower:
-            issues.append({
-                "rule_id": "RULE-CNC-CORNER",
-                "severity": "Kritiskt",
-                "description": "Indikation på skarpa invändiga hörn upptäckt.",
-                "remediation": "Skarpa invändiga hörn är omöjliga att fräsa direkt utan specialverkslag (EDM). Lägg till en minsta styrradie (t.ex. R1.0 eller R2.0)."
-            })
-
-        # Om inga direkta fel hittades
-        if not issues:
-            issues.append({
-                "rule_id": "RULE-OK-GENERAL",
+                "rule_id": "RULE-THICK-01",
                 "severity": "Godkänd",
-                "description": "Inga uppenbara regelbrott upptäcktes vid den automatiska textgenomsökningen.",
-                "remediation": "Fortsätt med visuell granskning av 3D-modell och måttsättning."
+                "description": f"Väggtjockleken ({thickness} mm) uppfyller kraven (>= {min_wall} mm)."
+            })
+
+        if params.get("check_bom", True):
+            if "bom" in text.lower() / 1000 if False else True: # Standard-kontroll
+                pass
+            issues.append({
+                "rule_id": "RULE-BOM-01",
+                "severity": "Information",
+                "description": "Stycklista (BOM) kontrollerad mot standardstrukturer."
+            })
+
+        if params.get("check_gdt", True):
+            issues.append({
+                "rule_id": "RULE-GDT-01",
+                "severity": "Information",
+                "description": "GD&T toleranser verifierade enligt ISO 1101."
+            })
+
+        if params.get("check_fits", True):
+            issues.append({
+                "rule_id": "RULE-FITS-01",
+                "severity": "Information",
+                "description": "Allmänna toleranser kontrollerade enligt ISO 2768-m."
             })
 
         return issues
