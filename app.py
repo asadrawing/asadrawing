@@ -665,8 +665,13 @@ with tab_history:
     st.subheader(t["tab_history"])
     history_records = db_manager.get_all_inspections()
     if history_records:
-        history_df = pd.DataFrame(history_records, columns=["ID", "Projekt", "Filnamn", "Revision", "Datum", "Rapportväg"])
-        st.dataframe(history_df[["ID", "Projekt", "Filnamn", "Revision", "Datum"]], use_container_width=True)
+        try:
+            history_df = pd.DataFrame(history_records)
+            if history_df.shape[1] == 6:
+                history_df.columns = ["ID", "Projekt", "Filnamn", "Revision", "Datum", "Rapportväg"]
+            st.dataframe(history_df, use_container_width=True)
+        except Exception as e:
+            st.error(f"Kunde inte ladda historik: {str(e)}")
     else:
         st.info("Inga historiska granskningar sparade än.")
 
