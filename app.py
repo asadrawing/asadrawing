@@ -17,7 +17,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
-# ReportLab för PDF-broschyr
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -32,7 +31,6 @@ from feedback_manager import FeedbackManager
 from auth_manager import AuthManager
 from cad_analyzer import analyze_3d_file
 
-# Sidkonfiguration
 st.set_page_config(
     page_title="asaDrawing.se - Professional QC & DFM", 
     page_icon="📐", 
@@ -49,12 +47,10 @@ OUTPUT_DIR = "rapport"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs("temp_uploads", exist_ok=True)
 
-# Session State för inloggning
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
     st.session_state.user_info = None
 
-# --- INLOGGNINGSSKÄRM ---
 if not st.session_state.authenticated:
     st.title("📐 asaDrawing.se — Logga in")
     st.caption("Ange dina inloggningsuppgifter för att få tillgång till industriell QC & DFM-analys.")
@@ -76,7 +72,6 @@ if not st.session_state.authenticated:
     st.info("💡 Standardkonton: admin / admin123, inkop / inkop123, beredare / bered123, qc_chef / qc123")
     st.stop()
 
-# --- NÄR ANVÄNDAREN ÄR INLOGGAD ---
 user_role = st.session_state.user_info["role"]
 user_name = st.session_state.user_info["full_name"]
 
@@ -149,7 +144,6 @@ TRANSLATIONS = {
     }
 }
 
-# Funktion för att generera produktbroschyr PDF
 def create_product_brochure_pdf():
     filename = "asaDrawing_Produktbroschyr.pdf"
     doc = SimpleDocTemplate(filename, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=45)
@@ -333,7 +327,6 @@ with st.sidebar:
 lang_clean = selected_lang.split(" ")[1] if " " in selected_lang else selected_lang
 ai_analyzer = DrawingAIAnalyzer(api_key=openai_api_key, lang=lang_clean)
 
-# HUVUDLAYOUT
 st.title(t["title"])
 st.markdown(t["subtitle"])
 
@@ -580,7 +573,6 @@ with tab_review:
             elif 'kritiskt' in str(sev).lower() or 'critical' in str(sev).lower(): st.error(f"**{rule_id}**: {desc}")
             else: st.success(f"**{rule_id}**: {desc}")
 
-        # --- BEHÖRIGHETSKONTROLL FÖR ATT GODKÄNNA AVVIKELSER ---
         st.markdown("---")
         st.markdown("#### 🔐 Formellt godkännande av avvikelser")
         
@@ -650,7 +642,6 @@ with tab_review:
                     except Exception as e:
                         st.error(f"Kunde inte skicka e-post: {str(e)}")
 
-# --- ÖVRIGA FLIKAR (Diff, Dashboard, Historik, Feedback) ---
 with tab_diff:
     st.subheader(t["tab_diff"])
     st.info("Här kan du ladda upp två revisioner av samma ritning för färgkodad jämförelse (Sida-vid-sida).")
