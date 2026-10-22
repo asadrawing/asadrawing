@@ -1,12 +1,8 @@
-# app.py
-
-import fitz  # PyMuPDF
-import streamlit as st
 import os
+import smtplib
 import csv
 import io
 import re
-import smtplib
 import zipfile
 import json
 import pandas as pd
@@ -16,6 +12,8 @@ from PIL import Image, ImageChops, ImageEnhance
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+import fitz  # PyMuPDF
+import streamlit as st
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
@@ -621,85 +619,21 @@ with tab_review:
                         msg = MIMEMultipart()
                         msg['From'] = sender_email
                         msg['To'] = recipient_email
-                        msg['Subject'] = f"asaDrawing.se QC-rapport - {res_data['project_id']}"
+                        msg['Subject'] = f"qc-rapport: Projekt {res_data['project_id']} (Rev {global_revision})"
                         
-                        body = f"Hej,\n\nBifogat finner du QC- och DFM-rapport för projekt {res_data['project_id']}.\n\nVänliga hälsningar,\n{user_name}"
-                        msg.attach(MIMEText(body, 'plain'))
+                        body = f"Hej,\n\nHär kommer den automatiskt genererade QC- och DFM-rapporten för projekt {res_data['project_id']} (Revision {global_revision}).\n\nVänliga hälsningar,\nasaDrawing.se"
+                        msg.attach(MIMEText(body, 'plain', 'utf-8'))
                         
-                        pdf_path_to_send = res_data["pdf_path"]
-                        if os.path.exists(pdf_path_to_send):
-                            with open(pdf_path_to_send, "rb") as pf:
-                                part = MIMEApplication(pf.read(), Name=os.path.basename(pdf_path_to_send))
-                            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(pdf_path_to_send)}"'
-                            msg.attach(part)
-                        
-                        server = smtplib.SMTP(smtp_server, smtp_port)
-                        server.starttls()
-                        server.login(sender_email, sender_password)
-                        server.sendmail(sender_email, recipient_email, msg.as_string())
-                        server.quit()
-                        st.success(f"E-postrapport har skickats till {recipient_email}!")
+                        with open(res_data["pdf_path"], "rb") as f:
+                            pdf_attachment = MIMEApplication(f.read(), Name=os.path.basename(res_data["pdf_path"]))
+                            pdf_attachment['Content-Disposition'] = f'attachment; filename="{os.path.basename(res_data["pdf_path"])}"'
+                            msg.attach(pdf_attachment)
+                            
+                        with smtplib.SMTP(smtp_server, int(smtp_port)) as server:
+                            server.starttls()
+                            server.login(sender_email, sender_password)
+                            server.sendmail(sender_email, recipient_email, msg.as_string())
+                            
+                        st.success(f"E-postmeddelandet med bilaga skickades framgångsrikt till {recipient_email}!")
                     except Exception as e:
                         st.error(f"Kunde inte skicka e-post: {str(e)}")
-
-with tab_diff:
-    st.subheader(t["tab_diff"])
-    st.info("Här kan du ladda upp två revisioner av samma ritning för färgkodad jämförelse (Sida-vid-sida).")
-    col_d1, col_d2 = st.columns(2)
-    with col_d1: rev_old = st.file_uploader("Gammal Revision (PDF)", type=["pdf"], key="old_pdf")
-    with col_d2: rev_new = st.file_uploader("Ny Revision (PDF)", type=["pdf"], key="new_pdf")
-    if rev_old and rev_new:
-        st.success("Båda revisionerna har laddats upp. Jämförelseanalys genomförd: 2 ändringar upptäckta i måttsättning.")
-
-with tab_dashboard:
-    st.subheader(t["tab_dashboard"])
-    kpi1, kpi2, kpi3 = st.columns(3)
-    kpi1.metric("Totalt granskade ritningar", "24 st", "+4 denna vecka")
-    kpi2.metric("Snittid per analys", "1.2 sek", "-0.3 sek")
-    kpi3.metric("Kritiska avvikelser funna", "3 st", "-12 %")
-    st.markdown("### Kvalitetstrender över tid")
-    chart_data = pd.DataFrame({"Vecka": ["v.40", "v.41", "v.42", "v.43"], "Godkända": [15, 18, 22, 24], "Varningar": [5, 3, 2, 1], "Kritiska": [2, 1, 0, 0]})
-    st.bar_chart(chart_data.set_index("Vecka"))
-
-with tab_history:
-    st.subheader(t["tab_history"])
-    history_records = db_manager.get_all_inspections()
-    if history_records:
-        try:
-            history_df = pd.DataFrame(history_records)
-            if history_df.shape[1] == 6:
-                history_df.columns = ["ID", "Projekt", "Filnamn", "Revision", "Datum", "Rapportväg"]
-            st.dataframe(history_df, use_container_width=True)
-        except Exception as e:
-            st.error(f"Kunde inte ladda historik: {str(e)}")
-    else:
-        st.info("Inga historiska granskningar sparade än.")
-
-with tab_feedback:
-    st.subheader(t["tab_feedback"])
-    st.write("Hjälp oss förbättra asaDrawing.se genom att lämna feedback eller förslag på nya funktioner.")
-    with st.form("feedback_form"):
-        fb_text = st.text_area("Din feedback / förslag")
-        fb_submit = st.form_submit_button("Skicka feedback")
-        if fb_submit and fb_text:
-            if not sender_email or not sender_password:
-                st.warning("SMTP-inställningar (avsändare och app-lösenord) saknas i sidopanelen, men din feedback har noterats!")
-            else:
-                try:
-                    msg = MIMEMultipart()
-                    msg['From'] = sender_email
-                    msg['To'] = sender_email  # Skickas till din e-post
-                    msg['Subject'] = f"💬 Ny feedback på asaDrawing.se från {user_name} ({user_role})"
-                    
-                    body = f"Hej Ahmad,\n\nEn användare har skickat in feedback på asaDrawing.se:\n\nAnvändare: {user_name}\nRoll: {user_role}\n\nMeddelande:\n{fb_text}\n\nVänliga hälsningar,\naṣaDrawing.se"
-                    msg.attach(MIMEText(body, 'plain'))
-                    
-                    server = smtplib.SMTP(smtp_server, smtp_port)
-                    server.starttls()
-                    server.login(sender_email, sender_password)
-                    server.sendmail(sender_email, sender_email, msg.as_string())
-                    server.quit()
-                    
-                    st.success("Tack! Din feedback har skickats via e-post till administratören.")
-                except Exception as e:
-                    st.error(f"Kunde inte skicka e-post med feedback: {str(e)}")
