@@ -32,7 +32,7 @@ class AuthManager:
                     ("beredare", self._hash_password("bered123"), "CNC Beredare", "Beredare"),
                     ("qc_chef", self._hash_password("qc123"), "Kvalitetschef", "Kvalitetschef")
                 ]
-                cursor.executemany('INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)', default_users)
+                cursor.executemany('INSERT OR IGNORE INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)', default_users)
                 conn.commit()
         finally:
             conn.close()
